@@ -16,7 +16,9 @@ func compare(t *testing.T, input string, expected string) {
 	f := NewFormatter(r, w)
 	f.SetIndentWidth(2)
 	err := f.Dump()
-	assert.Nil(t, err, "No error expected")
+	if err != nil {
+		t.Fatal(err)
+	}
 	assert.Equal(t, w.String(), expected)
 }
 
@@ -54,6 +56,15 @@ func TestFormat(t *testing.T) {
       "hoge"
     ]
   }
+}
+`)
+	compare(t, `{
+  "a": [
+  ],
+}
+`, `{
+  "a": [
+  ],
 }
 `)
 }

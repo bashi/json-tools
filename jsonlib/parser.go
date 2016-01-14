@@ -147,7 +147,7 @@ func (p *Parser) parseObject() error {
 			return p.createError("expected ':', but got %s",
 				scanner.TokenString(tok))
 		}
-		if err := p.parseValue(); err != nil {
+		if err := p.parseValue(p.s.Scan()); err != nil {
 			return err
 		}
 
@@ -170,14 +170,13 @@ func (p *Parser) parseObject() error {
 func (p *Parser) parseArray() error {
 	p.c.StartArray()
 	for {
-		tok := p.s.Peek()
+		tok := p.s.Scan()
 		if tok == ']' {
-			p.s.Scan()
 			p.c.EndArray()
 			return nil
 		}
 		p.c.StartValue()
-		if err := p.parseValue(); err != nil {
+		if err := p.parseValue(tok); err != nil {
 			return err
 		}
 
@@ -196,8 +195,7 @@ func (p *Parser) parseArray() error {
 	return nil
 }
 
-func (p *Parser) parseValue() error {
-	tok := p.s.Scan()
+func (p *Parser) parseValue(tok rune) error {
 	if tok == '{' {
 		return p.parseObject()
 	} else if tok == '[' {
