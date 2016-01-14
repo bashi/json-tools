@@ -110,7 +110,7 @@ func NewFormatter(r io.Reader, w io.Writer) *Formatter {
 	client := &formatClient{
 		w:            w,
 		indent:       "",
-		memberColor:  color.New(color.FgCyan),
+		memberColor:  color.New(color.FgMagenta),
 		stringColor:  color.New(color.FgRed),
 		numberColor:  color.New(color.FgBlue),
 		literalColor: color.New(color.FgCyan),
