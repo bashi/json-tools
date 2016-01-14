@@ -76,9 +76,26 @@ func NewParser(r io.Reader, c ParserClient) *Parser {
 	}
 }
 
+type ParserPosition struct {
+	Line   int
+	Column int
+}
+
+func (p *ParserPosition) String() string {
+	return fmt.Sprintf("%d:%d", p.Line, p.Column)
+}
+
+func (p *Parser) CurrentPos() ParserPosition {
+	pos := p.s.Pos()
+	return ParserPosition{
+		Line:   pos.Line,
+		Column: pos.Column,
+	}
+}
+
 type ParseError struct {
 	Message string
-	Pos     scanner.Position
+	Pos     ParserPosition
 }
 
 func (e *ParseError) Error() string {
@@ -88,7 +105,7 @@ func (e *ParseError) Error() string {
 func (p *Parser) createError(format string, args ...interface{}) error {
 	return &ParseError{
 		Message: fmt.Sprintf(format, args...),
-		Pos:     p.s.Pos(),
+		Pos:     p.CurrentPos(),
 	}
 }
 
