@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"io"
 	"strings"
+
+	"github.com/fatih/color"
 )
 
 const (
@@ -15,6 +17,11 @@ type formatClient struct {
 	w          io.Writer
 	indent     string
 	indentUnit string
+	// colorize funcs
+	memberColor  *color.Color
+	stringColor  *color.Color
+	numberColor  *color.Color
+	literalColor *color.Color
 }
 
 func (c *formatClient) enterBlock() {
@@ -46,7 +53,7 @@ func (c *formatClient) EndArray() {
 }
 
 func (c *formatClient) StartMember(s string) {
-	fmt.Fprintf(c.w, "\n%s%s: ", c.indent, s)
+	c.memberColor.Printf("\n%s%s: ", c.indent, s)
 }
 
 func (c *formatClient) EndMember(next HasNext) {
@@ -66,15 +73,15 @@ func (c *formatClient) EndValue(next HasNext) {
 }
 
 func (c *formatClient) StringValue(s string) {
-	fmt.Fprintf(c.w, "%s", s)
+	c.stringColor.Printf("%s", s)
 }
 
 func (c *formatClient) NumberValue(n string) {
-	fmt.Fprintf(c.w, "%s", n)
+	c.numberColor.Printf("%s", n)
 }
 
 func (c *formatClient) LiteralValue(l Literal) {
-	fmt.Fprintf(c.w, "%s", l.String())
+	c.literalColor.Printf("%s", l.String())
 }
 
 type Formatter struct {
@@ -93,10 +100,20 @@ func (f *Formatter) SetIndentWidth(n int) {
 	f.c.indentUnit = strings.Repeat(" ", n)
 }
 
+func (f *Formatter) EnableColor() {
+	color.NoColor = false
+}
+
 func NewFormatter(r io.Reader, w io.Writer) *Formatter {
+	color.Output = w
+	color.NoColor = true
 	client := &formatClient{
-		w:      w,
-		indent: "",
+		w:            w,
+		indent:       "",
+		memberColor:  color.New(color.FgCyan),
+		stringColor:  color.New(color.FgRed),
+		numberColor:  color.New(color.FgBlue),
+		literalColor: color.New(color.FgCyan),
 	}
 	f := &Formatter{
 		r: r,
