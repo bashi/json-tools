@@ -8,12 +8,12 @@ import (
 	"os"
 	"strings"
 
-	"github.com/bashi/json-tools/jsonlib"
+	"github.com/bashi/json-tools/parse"
 )
 
 type IndexEntry struct {
 	Path string
-	Pos  jsonlib.ParserPosition
+	Pos  parse.ParserPosition
 }
 
 func (e IndexEntry) String() string {
@@ -40,12 +40,12 @@ func newIndex() *Index {
 }
 
 type indexerClient struct {
-	jsonlib.ParserClientBase
+	parse.ParserClientBase
 
 	path    []string
 	pathStr string
 	index   *Index
-	parser  *jsonlib.Parser
+	parser  *parse.Parser
 }
 
 func (i *indexerClient) updatePath() {
@@ -80,7 +80,7 @@ func (i *indexerClient) StartMember(s string) {
 	i.PushPath(s)
 }
 
-func (i *indexerClient) EndMember(jsonlib.HasNext) {
+func (i *indexerClient) EndMember(parse.HasNext) {
 	i.PopPath()
 }
 
@@ -90,7 +90,7 @@ func (i *indexerClient) StringValue(s string) {
 }
 
 type indexer struct {
-	parser *jsonlib.Parser
+	parser *parse.Parser
 	index  *Index
 }
 
@@ -108,7 +108,7 @@ func newIndexer(r io.Reader) *indexer {
 		pathStr: "",
 		index:   index,
 	}
-	parser := jsonlib.NewParser(r, client)
+	parser := parse.NewParser(r, client)
 	client.parser = parser
 	return &indexer{
 		parser: parser,
