@@ -1,4 +1,4 @@
-package jsonlib
+package parse
 
 import (
 	"fmt"

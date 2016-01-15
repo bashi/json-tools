@@ -5,14 +5,14 @@ import (
 	"io"
 	"os"
 
-	"github.com/bashi/json-tools/jsonlib"
+	"github.com/bashi/json-tools/format"
 )
 
 var nocolor = flag.Bool("nocolor", false, "No color")
 var indent = flag.Int("indent", 2, "Indent width")
 
 func print(r io.Reader) {
-	formatter := jsonlib.NewFormatter(r, os.Stdout)
+	formatter := format.NewFormatter(r, os.Stdout)
 	formatter.SetIndentWidth(*indent)
 	if !*nocolor {
 		formatter.EnableColor()

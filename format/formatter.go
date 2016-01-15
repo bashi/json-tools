@@ -1,10 +1,11 @@
-package jsonlib
+package format
 
 import (
 	"fmt"
 	"io"
 	"strings"
 
+	"github.com/bashi/json-tools/parse"
 	"github.com/fatih/color"
 )
 
@@ -56,7 +57,7 @@ func (c *formatClient) StartMember(s string) {
 	c.memberColor.Printf("\n%s%s: ", c.indent, s)
 }
 
-func (c *formatClient) EndMember(next HasNext) {
+func (c *formatClient) EndMember(next parse.HasNext) {
 	if next {
 		fmt.Fprintf(c.w, ",")
 	}
@@ -66,7 +67,7 @@ func (c *formatClient) StartValue() {
 	fmt.Fprintf(c.w, "\n%s", c.indent)
 }
 
-func (c *formatClient) EndValue(next HasNext) {
+func (c *formatClient) EndValue(next parse.HasNext) {
 	if next {
 		fmt.Fprintf(c.w, ",")
 	}
@@ -80,7 +81,7 @@ func (c *formatClient) NumberValue(n string) {
 	c.numberColor.Printf("%s", n)
 }
 
-func (c *formatClient) LiteralValue(l Literal) {
+func (c *formatClient) LiteralValue(l parse.Literal) {
 	c.literalColor.Printf("%s", l.String())
 }
 
@@ -90,7 +91,7 @@ type Formatter struct {
 }
 
 func (f *Formatter) Dump() error {
-	parser := NewParser(f.r, f.c)
+	parser := parse.NewParser(f.r, f.c)
 	err := parser.Parse()
 	fmt.Fprintln(f.c.w)
 	return err
