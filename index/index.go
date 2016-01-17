@@ -20,15 +20,11 @@ func (e IndexEntry) String() string {
 	return fmt.Sprintf("%s: %s %s", e.Pos.String(), e.Path, e.Ident)
 }
 
-type indexImpl struct {
+type Index struct {
 	idx map[string][]*IndexEntry
 }
 
-func (i *indexImpl) Index(e *IndexEntry) {
-	i.idx[e.Ident] = append(i.idx[e.Ident], e)
-}
-
-func (i *indexImpl) Lookup(q string) []string {
+func (i *Index) Lookup(q string) []string {
 	var results []string
 	for _, e := range i.idx[q] {
 		results = append(results, e.String())
@@ -36,7 +32,7 @@ func (i *indexImpl) Lookup(q string) []string {
 	return results
 }
 
-func (i *indexImpl) Match(q string) []string {
+func (i *Index) Match(q string) []string {
 	var results []string
 	re, err := regexp.Compile(q)
 	if err != nil {
@@ -53,18 +49,6 @@ func (i *indexImpl) Match(q string) []string {
 	return results
 }
 
-type Index struct {
-	impl *indexImpl
-}
-
-func (i *Index) Lookup(q string) []string {
-	return i.impl.Lookup(q)
-}
-
-func (i *Index) Match(q string) []string {
-	return i.impl.Match(q)
-}
-
 type indexerClient struct {
 	parse.ParserClientBase
 
@@ -73,7 +57,11 @@ type indexerClient struct {
 	arrayIndex int
 	parser     *parse.Parser
 
-	index *indexImpl
+	idx map[string][]*IndexEntry
+}
+
+func (i *indexerClient) index(e *IndexEntry) {
+	i.idx[e.Ident] = append(i.idx[e.Ident], e)
 }
 
 func (i *indexerClient) updatePath() {
@@ -96,7 +84,7 @@ func (i *indexerClient) AddMember(s string) {
 		Path:  i.pathStr,
 		Pos:   i.parser.CurrentPos(),
 	}
-	i.index.Index(entry)
+	i.index(entry)
 }
 
 func (i *indexerClient) AddString(s string) {
@@ -105,7 +93,7 @@ func (i *indexerClient) AddString(s string) {
 		Path:  i.pathStr,
 		Pos:   i.parser.CurrentPos(),
 	}
-	i.index.Index(entry)
+	i.index(entry)
 }
 
 // ParserClient implementations
@@ -140,7 +128,7 @@ func (i *indexerClient) StringValue(s string) {
 
 type Indexer struct {
 	parser *parse.Parser
-	index  *indexImpl
+	client *indexerClient
 }
 
 func (i *Indexer) CreateIndex() (*Index, error) {
@@ -148,24 +136,21 @@ func (i *Indexer) CreateIndex() (*Index, error) {
 		return nil, err
 	}
 	return &Index{
-		impl: i.index,
+		idx: i.client.idx,
 	}, nil
 }
 
 func NewIndexer(r io.Reader) *Indexer {
-	index := &indexImpl{
-		idx: make(map[string][]*IndexEntry),
-	}
 	client := &indexerClient{
 		path:       make([]string, 0),
 		pathStr:    "",
 		arrayIndex: 0,
-		index:      index,
+		idx:        make(map[string][]*IndexEntry),
 	}
 	parser := parse.NewParser(r, client)
 	client.parser = parser
 	return &Indexer{
 		parser: parser,
-		index:  index,
+		client: client,
 	}
 }
