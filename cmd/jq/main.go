@@ -23,8 +23,10 @@ func repl(index *index.Index) {
 			return
 		}
 		q := strings.Trim(line, "\n")
-		results := index.Lookup(q)
-		fmt.Println(results)
+		results := index.Match(q)
+		for _, r := range results {
+			fmt.Println(r)
+		}
 	}
 }
 

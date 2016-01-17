@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/bashi/json-tools/parse"
+	"regexp"
 )
 
 type IndexEntry struct {
@@ -19,8 +20,6 @@ func (e IndexEntry) String() string {
 	return fmt.Sprintf("%s: %s %s", e.Pos.String(), e.Path, e.Ident)
 }
 
-// TODO: Replace this naive impl with a sophisticated one which supports
-// regexp queries.
 type indexImpl struct {
 	idx map[string][]*IndexEntry
 }
@@ -37,12 +36,33 @@ func (i *indexImpl) Lookup(q string) []string {
 	return results
 }
 
+func (i *indexImpl) Match(q string) []string {
+	var results []string
+	re, err := regexp.Compile(q)
+	if err != nil {
+		return results
+	}
+	for ident := range i.idx {
+		if !re.MatchString(ident) {
+			continue
+		}
+		for _, e := range i.idx[ident] {
+			results = append(results, e.String())
+		}
+	}
+	return results
+}
+
 type Index struct {
 	impl *indexImpl
 }
 
-func (i *Index) Lookup(q string) string {
-	return strings.Join(i.impl.Lookup(q), "\n")
+func (i *Index) Lookup(q string) []string {
+	return i.impl.Lookup(q)
+}
+
+func (i *Index) Match(q string) []string {
+	return i.impl.Match(q)
 }
 
 type indexerClient struct {
