@@ -24,9 +24,7 @@ func repl(index *index.Index) {
 		}
 		q := strings.Trim(line, "\n")
 		results := index.Lookup(q)
-		for _, path := range results {
-			fmt.Println(path)
-		}
+		fmt.Println(results)
 	}
 }
 
