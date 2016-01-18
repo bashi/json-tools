@@ -9,7 +9,10 @@ import (
 	"strings"
 
 	"github.com/bashi/json-tools/index"
+	"github.com/k0kubun/pp"
 )
+
+var _ = pp.Println
 
 func repl(index *index.Index) {
 	r := bufio.NewReader(os.Stdin)
@@ -42,5 +45,6 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	//pp.Println(index)
 	repl(index)
 }
