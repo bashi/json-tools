@@ -23,7 +23,6 @@ func (i *IndexEntry) String() string {
 }
 
 type indexEntryInternal struct {
-	Id   IdentId
 	Path []IdentId
 	Pos  parse.ParserPosition
 }
@@ -51,9 +50,9 @@ func (i *Index) buildPathString(path []IdentId) string {
 	return buf.String()
 }
 
-func (i *Index) newIndexEntry(e *indexEntryInternal) *IndexEntry {
+func (i *Index) newIndexEntry(id IdentId, e *indexEntryInternal) *IndexEntry {
 	return &IndexEntry{
-		Ident: i.identIds[e.Id],
+		Ident: i.identIds[id],
 		Path:  i.buildPathString(e.Path),
 		Pos:   e.Pos,
 	}
@@ -67,17 +66,8 @@ func (i *Index) id(s string) IdentId {
 	return id
 }
 
-func (i *Index) Lookup(q string) []string {
-	id := i.id(q)
-	var results []string
-	for _, e := range i.idx[id] {
-		results = append(results, i.newIndexEntry(e).String())
-	}
-	return results
-}
-
-func (i *Index) Match(q string) []string {
-	var results []string
+func (i *Index) Match(q string) []*IndexEntry {
+	var results []*IndexEntry
 	re, err := regexp.Compile(q)
 	if err != nil {
 		return results
@@ -88,7 +78,7 @@ func (i *Index) Match(q string) []string {
 		}
 		id := i.id(ident)
 		for _, e := range i.idx[id] {
-			results = append(results, i.newIndexEntry(e).String())
+			results = append(results, i.newIndexEntry(id, e))
 		}
 	}
 	return results
@@ -116,19 +106,18 @@ func (i *indexerClient) idFor(s string) IdentId {
 	return id
 }
 
-func (i *indexerClient) index(e *indexEntryInternal) {
-	i.idx[e.Id] = append(i.idx[e.Id], e)
+func (i *indexerClient) index(id IdentId, e *indexEntryInternal) {
+	i.idx[id] = append(i.idx[id], e)
 }
 
 func (i *indexerClient) indexIdent(s string) {
-	id := i.idFor(s)
 	entry := &indexEntryInternal{
-		Id:   id,
 		Path: make([]IdentId, len(i.path)),
 		Pos:  i.parser.CurrentPos(),
 	}
 	copy(entry.Path, i.path)
-	i.index(entry)
+	id := i.idFor(s)
+	i.index(id, entry)
 }
 
 func (i *indexerClient) PushPath(s string) {
