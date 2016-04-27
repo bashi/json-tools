@@ -1,13 +1,13 @@
 package index
 
 import (
-	"io"
-	"strconv"
-
 	"bytes"
 	"fmt"
-	"github.com/bashi/json-tools/parse"
+	"io"
 	"regexp"
+	"strconv"
+
+	"github.com/bashi/json-tools/parse"
 )
 
 type IdentId int
