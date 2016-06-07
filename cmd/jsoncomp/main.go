@@ -6,11 +6,11 @@ import (
 	"io"
 	"os"
 
-	"github.com/bashi/json-tools/parse"
+	"github.com/bashi/json-tools"
 )
 
 type jsonClient struct {
-	parse.ParserClientBase
+	jsontools.ParserClientBase
 	w io.Writer
 }
 
@@ -34,13 +34,13 @@ func (c *jsonClient) StartMember(s string) {
 	fmt.Fprintf(c.w, "%s:", s)
 }
 
-func (c *jsonClient) EndMember(next parse.HasNext) {
+func (c *jsonClient) EndMember(next jsontools.HasNext) {
 	if next {
 		fmt.Fprintf(c.w, ",")
 	}
 }
 
-func (c *jsonClient) EndValue(next parse.HasNext) {
+func (c *jsonClient) EndValue(next jsontools.HasNext) {
 	if next {
 		fmt.Fprintf(c.w, ",")
 	}
@@ -54,7 +54,7 @@ func (c *jsonClient) NumberValue(n string) {
 	fmt.Fprintf(c.w, "%s", n)
 }
 
-func (c *jsonClient) LiteralValue(l parse.Literal) {
+func (c *jsonClient) LiteralValue(l jsontools.Literal) {
 	fmt.Fprintf(c.w, "%s", l.String())
 }
 
@@ -62,7 +62,7 @@ func compact(r io.Reader, w io.Writer) error {
 	client := &jsonClient{
 		w: w,
 	}
-	parser := parse.NewParser(r, client)
+	parser := jsontools.NewParser(r, client)
 	return parser.Parse()
 }
 

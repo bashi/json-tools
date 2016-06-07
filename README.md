@@ -1,3 +1,3 @@
-## jsonpp
+# json-tools
 
-Stream-based JSON pretty printer.
+Utilities for working with JSON.

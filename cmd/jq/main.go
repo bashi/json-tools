@@ -8,13 +8,13 @@ import (
 	"os"
 	"strings"
 
-	"github.com/bashi/json-tools/index"
+	"github.com/bashi/json-tools"
 	"github.com/k0kubun/pp"
 )
 
 var _ = pp.Println
 
-func repl(index *index.Index) {
+func repl(index *jsontools.Index) {
 	r := bufio.NewReader(os.Stdin)
 	for {
 		fmt.Print("> ")
@@ -40,7 +40,7 @@ func main() {
 		panic(err)
 	}
 
-	indexer := index.NewIndexer(file)
+	indexer := jsontools.NewIndexer(file)
 	index, err := indexer.CreateIndex()
 	if err != nil {
 		panic(err)

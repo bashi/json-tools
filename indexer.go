@@ -1,4 +1,4 @@
-package index
+package jsontools
 
 import (
 	"bytes"
@@ -6,8 +6,6 @@ import (
 	"io"
 	"regexp"
 	"strconv"
-
-	"github.com/bashi/json-tools/parse"
 )
 
 type IdentId int
@@ -15,7 +13,7 @@ type IdentId int
 type IndexEntry struct {
 	Ident string
 	Path  string
-	Pos   parse.ParserPosition
+	Pos   ParserPosition
 }
 
 func (i *IndexEntry) String() string {
@@ -24,7 +22,7 @@ func (i *IndexEntry) String() string {
 
 type indexEntryInternal struct {
 	Path []IdentId
-	Pos  parse.ParserPosition
+	Pos  ParserPosition
 }
 
 type Index struct {
@@ -85,13 +83,13 @@ func (i *Index) Match(q string) []*IndexEntry {
 }
 
 type indexerClient struct {
-	parse.ParserClientBase
+	ParserClientBase
 
 	currentIdentId IdentId
 	idents         map[string]IdentId
 	path           []IdentId
 	arrayIndex     int
-	parser         *parse.Parser
+	parser         *Parser
 
 	idx map[IdentId][]*indexEntryInternal
 }
@@ -145,7 +143,7 @@ func (i *indexerClient) StartMember(s string) {
 	i.PushPath(s)
 }
 
-func (i *indexerClient) EndMember(parse.HasNext) {
+func (i *indexerClient) EndMember(HasNext) {
 	i.PopPath()
 }
 
@@ -158,7 +156,7 @@ func (i *indexerClient) StartValue() {
 	i.arrayIndex += 1
 }
 
-func (i *indexerClient) EndValue(parse.HasNext) {
+func (i *indexerClient) EndValue(HasNext) {
 	i.PopPath()
 }
 
@@ -168,7 +166,7 @@ func (i *indexerClient) StringValue(s string) {
 }
 
 type Indexer struct {
-	parser *parse.Parser
+	parser *Parser
 	client *indexerClient
 }
 
@@ -195,7 +193,7 @@ func NewIndexer(r io.Reader) *Indexer {
 		arrayIndex:     0,
 		idx:            make(map[IdentId][]*indexEntryInternal),
 	}
-	parser := parse.NewParser(r, client)
+	parser := NewParser(r, client)
 	client.parser = parser
 	return &Indexer{
 		parser: parser,
