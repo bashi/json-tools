@@ -1,37 +1,17 @@
 package main
 
 import (
-	"bufio"
 	"flag"
 	"fmt"
 	"io"
 	"os"
-	"strings"
 
+	"github.com/bashi/go-repl"
 	"github.com/bashi/json-tools"
 	"github.com/k0kubun/pp"
 )
 
 var _ = pp.Println
-
-func repl(index *jsontools.Index) {
-	r := bufio.NewReader(os.Stdin)
-	for {
-		fmt.Print("> ")
-		line, err := r.ReadString('\n')
-		if err != nil {
-			if err != io.EOF {
-				panic(err)
-			}
-			return
-		}
-		q := strings.Trim(line, "\n")
-		results := index.Match(q)
-		for _, r := range results {
-			fmt.Println(r)
-		}
-	}
-}
 
 func main() {
 	flag.Parse()
@@ -46,5 +26,14 @@ func main() {
 		panic(err)
 	}
 	//pp.Println(index)
-	repl(index)
+	err = repl.Run(func(line string) error {
+		results := index.Match(line)
+		for _, r := range results {
+			fmt.Println(r)
+		}
+		return nil
+	})
+	if err != nil && err != io.EOF {
+		panic(err)
+	}
 }
