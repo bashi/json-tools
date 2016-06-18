@@ -7,26 +7,47 @@ import (
 )
 
 type jsonValue interface {
+	ToString() string
 }
 
 type objectValue struct {
 	props map[string]jsonValue
 }
 
+func (v *objectValue) ToString() string {
+	return "[Object]"
+}
+
 type arrayValue struct {
 	elems []jsonValue
+}
+
+func (v *arrayValue) ToString() string {
+	return "[Array]"
 }
 
 type stringValue struct {
 	value string
 }
 
+func (v *stringValue) ToString() string {
+	return v.value
+}
+
 type numberValue struct {
 	value float64
 }
 
+func (v *numberValue) ToString() string {
+	return fmt.Sprintf("%f", v.value)
+}
+
 type literalValue struct {
 	value Literal
+}
+
+func (v *literalValue) ToString() string {
+	return v.value.String()
 }
 
 type decoderClient struct {
