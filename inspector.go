@@ -68,23 +68,36 @@ func (i *Inspector) pop() {
 	i.stack = i.stack[:l-1]
 }
 
-func (i *Inspector) moveTo(path string) {
-	if path == ".." {
+func (i *Inspector) moveTo(path []string) {
+	if len(path) == 0 {
+		return
+	}
+
+	name := path[0]
+	rest := path[1:]
+	if name == "." {
+		i.moveTo(rest)
+		return
+	}
+	if name == ".." {
 		i.pop()
+		i.moveTo(rest)
+		return
 	}
 
 	switch cur := i.current().value.(type) {
 	case *objectValue:
-		if value, ok := cur.props[path]; ok {
-			i.pushMember(path, value)
+		if value, ok := cur.props[name]; ok {
+			i.pushMember(name, value)
 		}
 	case *arrayValue:
-		index, err := strconv.Atoi(path)
+		index, err := strconv.Atoi(name)
 		if err != nil || index < 0 || index >= len(cur.elems) {
 			return
 		}
 		i.pushValue(index, cur.elems[index])
 	}
+	i.moveTo(rest)
 }
 
 func list(v jsonValue, limit int) {
@@ -165,13 +178,16 @@ func printValue(v jsonValue, depth int, rows int, indent string) {
 
 func show(v jsonValue) {
 	printValue(v, 4, 64, "")
+	fmt.Println()
 }
 
 func (i *Inspector) doCommand(line string) error {
 	if strings.HasPrefix(line, "ls") {
 		list(i.current().value, 100)
 	} else if strings.HasPrefix(line, "cd") {
-		i.moveTo(strings.TrimSpace(line[2:]))
+		pathStr := strings.TrimSpace(line[2:])
+		path := strings.Split(pathStr, "/")
+		i.moveTo(path)
 	} else if line == "show" {
 		show(i.current().value)
 	} else {
