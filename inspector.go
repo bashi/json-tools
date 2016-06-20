@@ -100,23 +100,15 @@ func (i *Inspector) moveTo(path []string) {
 	i.moveTo(rest)
 }
 
-func list(v jsonValue, limit int) {
+func list(v jsonValue) {
 	switch value := v.(type) {
 	case *objectValue:
 		for k, v := range value.props {
 			fmt.Printf("%s: %s\n", k, v.ToString())
-			limit -= 1
-			if limit <= 0 {
-				return
-			}
 		}
 	case *arrayValue:
 		for index, v := range value.elems {
 			fmt.Printf("%d: %s\n", index, v.ToString())
-			limit -= 1
-			if limit <= 0 {
-				return
-			}
 		}
 	}
 }
@@ -181,9 +173,22 @@ func show(v jsonValue) {
 	fmt.Println()
 }
 
+var metaColor = color.New(color.FgGreen)
+
+func (i *Inspector) showMetadata() {
+	switch value := i.current().value.(type) {
+	case *objectValue:
+		metaColor.Printf("[Object] size = %d\n", len(value.props))
+	case *arrayValue:
+		metaColor.Printf("[Array] size = %d\n", len(value.elems))
+	default:
+		metaColor.Printf("%s\n", value.ToString())
+	}
+}
+
 func (i *Inspector) doCommand(line string) error {
 	if strings.HasPrefix(line, "ls") {
-		list(i.current().value, 100)
+		list(i.current().value)
 	} else if strings.HasPrefix(line, "cd") {
 		pathStr := strings.TrimSpace(line[2:])
 		path := strings.Split(pathStr, "/")
@@ -202,6 +207,7 @@ func (i *Inspector) Repl() error {
 
 	line.SetCtrlCAborts(true)
 	for {
+		i.showMetadata()
 		l, err := line.Prompt(i.current().path + "> ")
 		if err != nil {
 			// Map SIGINT to EOF
