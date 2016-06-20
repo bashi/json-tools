@@ -31,7 +31,7 @@ type stringValue struct {
 }
 
 func (v *stringValue) ToString() string {
-	return v.value
+	return `"` + v.value + `"`
 }
 
 type numberValue struct {

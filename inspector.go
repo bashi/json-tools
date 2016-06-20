@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/k0kubun/pp"
+	"github.com/fatih/color"
 	"github.com/peterh/liner"
 )
 
@@ -108,19 +108,74 @@ func list(v jsonValue, limit int) {
 	}
 }
 
+var literalColor = color.New(color.FgCyan)
+var valueColor = color.New(color.FgBlue)
+var memberColor = color.New(color.FgMagenta)
+
+func printValue(v jsonValue, depth int, rows int, indent string) {
+	switch value := v.(type) {
+	case *literalValue:
+		literalColor.Printf("%s", value.ToString())
+	case *stringValue, *numberValue:
+		valueColor.Printf("%s", value.ToString())
+	case *objectValue:
+		if depth <= 0 || rows <= 0 {
+			fmt.Printf("%s", value.ToString())
+		} else {
+			fmt.Printf("{")
+			innerIndent := indent + "  "
+			i := rows
+			prefix := "\n"
+			for k, m := range value.props {
+				fmt.Printf("%s%s", prefix, innerIndent)
+				memberColor.Printf("%s", k)
+				fmt.Printf(": ")
+				printValue(m, depth-1, rows/2, innerIndent)
+				i -= 1
+				if i <= 0 {
+					fmt.Printf("%s%s...", prefix, innerIndent)
+					break
+				}
+				prefix = ",\n"
+			}
+			fmt.Printf("\n%s}", indent)
+		}
+	case *arrayValue:
+		if depth <= 0 || rows <= 0 {
+			fmt.Printf("%s", value.ToString())
+		} else {
+			fmt.Printf("[")
+			innerIndent := indent + "  "
+			prefix := "\n"
+			for i, e := range value.elems {
+				fmt.Printf("%s%s", prefix, innerIndent)
+				printValue(e, depth-1, rows/2, innerIndent)
+				if rows-i <= 0 {
+					fmt.Printf("%s%s...", prefix, innerIndent)
+					break
+				}
+				prefix = ",\n"
+			}
+			fmt.Printf("\n%s]", indent)
+		}
+	default:
+		fmt.Printf("%s", value.ToString())
+	}
+}
+
 func show(v jsonValue) {
-	pp.Println(v)
+	printValue(v, 4, 64, "")
 }
 
 func (i *Inspector) doCommand(line string) error {
 	if strings.HasPrefix(line, "ls") {
 		list(i.current().value, 100)
-	}
-	if strings.HasPrefix(line, "cd") {
+	} else if strings.HasPrefix(line, "cd") {
 		i.moveTo(strings.TrimSpace(line[2:]))
-	}
-	if line == "show" {
+	} else if line == "show" {
 		show(i.current().value)
+	} else {
+		fmt.Printf("Unrecognized: %s\n", line)
 	}
 	return nil
 }
