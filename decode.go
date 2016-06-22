@@ -3,15 +3,43 @@ package jsontools
 import (
 	"fmt"
 	"io"
+	"runtime"
 	"strconv"
 )
+
+type symbolTable map[uint]string
+
+type symtabMaker struct {
+	nextId   uint
+	symtab   symbolTable
+	inverted map[string]uint
+}
+
+func newSymtabMaker() *symtabMaker {
+	return &symtabMaker{
+		nextId:   0,
+		symtab:   make(symbolTable),
+		inverted: make(map[string]uint),
+	}
+}
+
+func (m *symtabMaker) getId(s string) uint {
+	if id, ok := m.inverted[s]; ok {
+		return id
+	}
+	id := m.nextId
+	m.nextId += 1
+	m.inverted[s] = id
+	m.symtab[id] = s
+	return id
+}
 
 type jsonValue interface {
 	ToString() string
 }
 
 type objectValue struct {
-	props map[string]jsonValue
+	props map[uint]jsonValue
 }
 
 func (v *objectValue) ToString() string {
@@ -27,11 +55,11 @@ func (v *arrayValue) ToString() string {
 }
 
 type stringValue struct {
-	value string
+	id uint
 }
 
 func (v *stringValue) ToString() string {
-	return `"` + v.value + `"`
+	return "[String]"
 }
 
 type numberValue struct {
@@ -51,8 +79,12 @@ func (v *literalValue) ToString() string {
 }
 
 type decoderClient struct {
-	stack       []jsonValue
-	memberStack []string
+	stack         []jsonValue
+	memberStack   []string
+	symtabMaker   *symtabMaker
+	numObjects    int64
+	numArrays     int64
+	numPrimitives int64
 }
 
 func (c *decoderClient) push(v jsonValue) {
@@ -78,8 +110,9 @@ func (c *decoderClient) currentArray() *arrayValue {
 
 func (c *decoderClient) StartObject() {
 	c.push(&objectValue{
-		props: make(map[string]jsonValue),
+		props: make(map[uint]jsonValue),
 	})
+	c.numObjects += 1
 	c.memberStack = append(c.memberStack, "")
 }
 
@@ -89,6 +122,7 @@ func (c *decoderClient) EndObject() {
 
 func (c *decoderClient) StartArray() {
 	c.push(&arrayValue{})
+	c.numArrays += 1
 }
 
 func (c *decoderClient) EndArray() {
@@ -102,7 +136,8 @@ func (c *decoderClient) EndMember(next HasNext) {
 	v := c.pop()
 	obj := c.currentObject()
 	name := c.memberStack[len(c.memberStack)-1]
-	obj.props[name] = v
+	symid := c.symtabMaker.getId(name)
+	obj.props[symid] = v
 }
 
 func (c *decoderClient) StartValue() {
@@ -115,28 +150,51 @@ func (c *decoderClient) EndValue(next HasNext) {
 }
 
 func (c *decoderClient) StringValue(s string) {
-	c.push(&stringValue{s[1 : len(s)-1]})
+	value := s[1 : len(s)-1]
+	id := c.symtabMaker.getId(value)
+	c.push(&stringValue{id})
+	c.numPrimitives += 1
 }
 
 func (c *decoderClient) NumberValue(s string) {
 	n, _ := strconv.ParseFloat(s, 64)
 	c.push(&numberValue{n})
+	c.numPrimitives += 1
 }
 
 func (c *decoderClient) LiteralValue(l Literal) {
 	c.push(&literalValue{l})
+	c.numPrimitives += 1
 }
 
-func Decode(r io.Reader) (jsonValue, error) {
-	c := &decoderClient{}
+type decodeResult struct {
+	toplevel      jsonValue
+	symtab        symbolTable
+	numObjects    int64
+	numArrays     int64
+	numPrimitives int64
+}
+
+func Decode(r io.Reader) (*decodeResult, error) {
+	c := &decoderClient{
+		symtabMaker: newSymtabMaker(),
+	}
 	parser := NewParser(r, c)
 	err := parser.Parse()
 	if err != nil {
 		return nil, err
 	}
 	if len(c.stack) != 1 {
-		// This shouldn't happen.
 		return nil, fmt.Errorf("Internal logic error: %d", len(c.stack))
 	}
-	return c.pop(), nil
+	result := &decodeResult{
+		toplevel:      c.pop(),
+		symtab:        c.symtabMaker.symtab,
+		numObjects:    c.numObjects,
+		numArrays:     c.numArrays,
+		numPrimitives: c.numPrimitives,
+	}
+	c = nil
+	runtime.GC()
+	return result, nil
 }

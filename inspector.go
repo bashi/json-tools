@@ -19,22 +19,45 @@ type stackItem struct {
 }
 
 type Inspector struct {
-	toplevel jsonValue
-	stack    []*stackItem
+	json  *decodeResult
+	stack []*stackItem
 }
 
 func NewInspector(r io.Reader) (*Inspector, error) {
-	obj, err := Decode(r)
+	json, err := Decode(r)
 	if err != nil {
 		return nil, err
 	}
 	stack := []*stackItem{
-		{obj, "", ""},
+		{json.toplevel, "", ""},
 	}
 	return &Inspector{
-		toplevel: obj,
-		stack:    stack,
+		json:  json,
+		stack: stack,
 	}, nil
+}
+
+func (i *Inspector) findMember(obj *objectValue, name string) jsonValue {
+	for symid, v := range obj.props {
+		propName := i.json.symtab[symid]
+		if propName == name {
+			return v
+		}
+	}
+	return nil
+}
+
+func (i *Inspector) idToStr(id uint) string {
+	return i.json.symtab[id]
+}
+
+func (i *Inspector) valueToString(v jsonValue) string {
+	switch value := v.(type) {
+	case *stringValue:
+		return i.idToStr(value.id)
+	default:
+		return v.ToString()
+	}
 }
 
 func (i *Inspector) current() *stackItem {
@@ -87,7 +110,7 @@ func (i *Inspector) moveTo(path []string) {
 
 	switch cur := i.current().value.(type) {
 	case *objectValue:
-		if value, ok := cur.props[name]; ok {
+		if value := i.findMember(cur, name); value != nil {
 			i.pushMember(name, value)
 		}
 	case *arrayValue:
@@ -100,15 +123,15 @@ func (i *Inspector) moveTo(path []string) {
 	i.moveTo(rest)
 }
 
-func list(v jsonValue) {
+func (i *Inspector) list(v jsonValue) {
 	switch value := v.(type) {
 	case *objectValue:
 		for k, v := range value.props {
-			fmt.Printf("%s: %s\n", k, v.ToString())
+			fmt.Printf("%s: %s\n", i.idToStr(k), i.valueToString(v))
 		}
 	case *arrayValue:
 		for index, v := range value.elems {
-			fmt.Printf("%d: %s\n", index, v.ToString())
+			fmt.Printf("%d: %s\n", index, i.valueToString(v))
 		}
 	}
 }
@@ -117,27 +140,28 @@ var literalColor = color.New(color.FgCyan)
 var valueColor = color.New(color.FgBlue)
 var memberColor = color.New(color.FgMagenta)
 
-func printValue(v jsonValue, depth int, rows int, indent string) {
+func (i *Inspector) printValue(
+	v jsonValue, depth int, rows int, indent string) {
 	switch value := v.(type) {
 	case *literalValue:
-		literalColor.Printf("%s", value.ToString())
+		literalColor.Printf("%s", i.valueToString(value))
 	case *stringValue, *numberValue:
-		valueColor.Printf("%s", value.ToString())
+		valueColor.Printf("%s", i.valueToString(value))
 	case *objectValue:
 		if depth <= 0 || rows <= 0 {
-			fmt.Printf("%s", value.ToString())
+			fmt.Printf("%s", i.valueToString(value))
 		} else {
 			fmt.Printf("{")
 			innerIndent := indent + "  "
-			i := rows
+			count := rows
 			prefix := "\n"
 			for k, m := range value.props {
 				fmt.Printf("%s%s", prefix, innerIndent)
-				memberColor.Printf("%s", k)
+				memberColor.Printf("%s", i.idToStr(k))
 				fmt.Printf(": ")
-				printValue(m, depth-1, rows/2, innerIndent)
-				i -= 1
-				if i <= 0 {
+				i.printValue(m, depth-1, rows/2, innerIndent)
+				count -= 1
+				if count <= 0 {
 					fmt.Printf("%s%s...", prefix, innerIndent)
 					break
 				}
@@ -147,15 +171,15 @@ func printValue(v jsonValue, depth int, rows int, indent string) {
 		}
 	case *arrayValue:
 		if depth <= 0 || rows <= 0 {
-			fmt.Printf("%s", value.ToString())
+			fmt.Printf("%s", i.valueToString(value))
 		} else {
 			fmt.Printf("[")
 			innerIndent := indent + "  "
 			prefix := "\n"
-			for i, e := range value.elems {
+			for count, e := range value.elems {
 				fmt.Printf("%s%s", prefix, innerIndent)
-				printValue(e, depth-1, rows/2, innerIndent)
-				if rows-i <= 0 {
+				i.printValue(e, depth-1, rows/2, innerIndent)
+				if rows-count <= 0 {
 					fmt.Printf("%s%s...", prefix, innerIndent)
 					break
 				}
@@ -164,37 +188,41 @@ func printValue(v jsonValue, depth int, rows int, indent string) {
 			fmt.Printf("\n%s]", indent)
 		}
 	default:
-		fmt.Printf("%s", value.ToString())
+		fmt.Printf("%s", i.valueToString(value))
 	}
 }
 
-func show(v jsonValue) {
-	printValue(v, 4, 64, "")
+func (i *Inspector) show(v jsonValue) {
+	i.printValue(v, 4, 64, "")
 	fmt.Println()
 }
 
 var metaColor = color.New(color.FgGreen)
 
 func (i *Inspector) showMetadata() {
+	if len(i.stack) == 1 {
+		fmt.Printf("# objects = %d, arrays = %d, primitives = %d\n",
+			i.json.numObjects, i.json.numArrays, i.json.numPrimitives)
+	}
 	switch value := i.current().value.(type) {
 	case *objectValue:
 		metaColor.Printf("[Object] size = %d\n", len(value.props))
 	case *arrayValue:
 		metaColor.Printf("[Array] size = %d\n", len(value.elems))
 	default:
-		metaColor.Printf("%s\n", value.ToString())
+		metaColor.Printf("%s\n", i.valueToString(value))
 	}
 }
 
 func (i *Inspector) doCommand(line string) error {
 	if strings.HasPrefix(line, "ls") {
-		list(i.current().value)
+		i.list(i.current().value)
 	} else if strings.HasPrefix(line, "cd") {
 		pathStr := strings.TrimSpace(line[2:])
 		path := strings.Split(pathStr, "/")
 		i.moveTo(path)
 	} else if line == "show" {
-		show(i.current().value)
+		i.show(i.current().value)
 	} else {
 		fmt.Printf("Unrecognized: %s\n", line)
 	}
