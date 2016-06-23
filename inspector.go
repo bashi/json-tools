@@ -14,7 +14,6 @@ type Path string
 
 type stackItem struct {
 	value jsonValue
-	name  string
 	path  string
 }
 
@@ -29,7 +28,10 @@ func NewInspector(r io.Reader) (*Inspector, error) {
 		return nil, err
 	}
 	stack := []*stackItem{
-		{json.toplevel, "", ""},
+		{
+			value: json.toplevel,
+			path:  "",
+		},
 	}
 	return &Inspector{
 		json:  json,
@@ -68,7 +70,6 @@ func (i *Inspector) pushMember(name string, value jsonValue) {
 	path := i.current().path + "." + name
 	i.stack = append(i.stack, &stackItem{
 		value: value,
-		name:  name,
 		path:  path,
 	})
 }
@@ -78,7 +79,6 @@ func (i *Inspector) pushValue(index int, value jsonValue) {
 	path := i.current().path + name
 	i.stack = append(i.stack, &stackItem{
 		value: value,
-		name:  name,
 		path:  path,
 	})
 }
@@ -149,7 +149,7 @@ func (i *Inspector) printValue(
 		valueColor.Printf("%s", i.valueToString(value))
 	case *objectValue:
 		if depth <= 0 || rows <= 0 {
-			fmt.Printf("%s", i.valueToString(value))
+			fmt.Printf("[Object]")
 		} else {
 			fmt.Printf("{")
 			innerIndent := indent + "  "
@@ -171,7 +171,7 @@ func (i *Inspector) printValue(
 		}
 	case *arrayValue:
 		if depth <= 0 || rows <= 0 {
-			fmt.Printf("%s", i.valueToString(value))
+			fmt.Printf("[Array]")
 		} else {
 			fmt.Printf("[")
 			innerIndent := indent + "  "
@@ -193,7 +193,7 @@ func (i *Inspector) printValue(
 }
 
 func (i *Inspector) show(v jsonValue) {
-	i.printValue(v, 4, 64, "")
+	i.printValue(v, 4, 32, "")
 	fmt.Println()
 }
 
@@ -223,6 +223,8 @@ func (i *Inspector) doCommand(line string) error {
 		i.moveTo(path)
 	} else if line == "show" {
 		i.show(i.current().value)
+	} else if len(line) == 0 {
+		// No-op
 	} else {
 		fmt.Printf("Unrecognized: %s\n", line)
 	}
